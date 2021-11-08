@@ -1,74 +1,60 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	oauthapi "google.golang.org/api/oauth2/v2"
 )
 
-type Auth struct {
-	ClientID    string
-	Secret      string
-	RedirectURL string
-	Scopes      []string
-}
-
-func GetAuthInfo() (*Auth, error) {
-	if err := godotenv.Load(fmt.Sprintf("./%s.env", os.Getenv("GO_ENV"))); err != nil {
-		return nil, err
-	}
-	auth := &Auth{
-		ClientID:    os.Getenv("CLIENT_ID"),
-		Secret:      os.Getenv("SECRET"),
-		RedirectURL: "urn:ietf:wg:oauth:2.0:oob",
-		Scopes:      []string{"https://www.googleapis.com/auth/drive"},
-	}
-	return auth, nil
-}
-
 func main() {
-	auth, err := GetAuthInfo()
-	if err != nil {
+	if err := godotenv.Load(fmt.Sprintf("./%s.env", os.Getenv("GO_ENV"))); err != nil {
 		return
 	}
-	fmt.Println("Start Execute API")
+	conf.ClientID = os.Getenv("CLIENT_ID")
+	conf.ClientSecret = os.Getenv("SECRET")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/login", LoginHandler)
+	mux.HandleFunc("/loginr", LoginRHandler)
+	log.Println("Server has started")
+	http.ListenAndServe(":5001", mux)
+}
 
-	config := &oauth2.Config{
-		ClientID:     auth.ClientID,
-		ClientSecret: auth.Secret,
-		RedirectURL:  auth.RedirectURL,
-		Scopes:       auth.Scopes,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
-			TokenURL: "https://accounts.google.com/o/oauth2/token",
-		},
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	var url = conf.AuthCodeURL("yourStateUUID", oauth2.AccessTypeOffline)
+	fmt.Fprintf(w, "Visit here : %s", url)
+}
+
+func LoginRHandler(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query()["code"]
+	if code == nil || len(code) == 0 {
+		fmt.Fprint(w, "Invalid Parameter")
 	}
-
-	url := config.AuthCodeURL("")
-	fmt.Println("ブラウザで以下のURLにアクセスし、認証してください。")
-	fmt.Println(url)
-	fmt.Println("")
-
-	fmt.Printf("Input auth code: ")
-	var code string
-	fmt.Scanf("%s\n", &code)
-
-	token, err := config.Exchange(oauth2.NoContext, code)
+	ctx := context.Background()
+	tok, err := conf.Exchange(ctx, code[0])
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(w, "OAuth Error:%v", err)
 	}
-	text, err := json.Marshal(token)
+	client := conf.Client(ctx, tok)
+	svr, err := oauthapi.New(client)
+	ui, err := svr.Userinfo.Get().Do()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(w, "OAuth Error:%v", err)
+	} else {
+		fmt.Fprintf(w, "Your are logined as : %s", ui.Email)
 	}
-	err = ioutil.WriteFile("token.json", text, 0777)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("token is saved to token.json")
+}
+
+var conf = &oauth2.Config{
+	ClientID:     "",
+	ClientSecret: "",
+	Scopes:       []string{oauthapi.UserinfoEmailScope},
+	Endpoint:     google.Endpoint,
+	RedirectURL:  "http://localhost:5001/loginr",
 }
