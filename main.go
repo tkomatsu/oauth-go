@@ -12,10 +12,10 @@ import (
 )
 
 type Auth struct {
-	ClientID string
-	Secret string
+	ClientID    string
+	Secret      string
 	RedirectURL string
-	Scopes []string
+	Scopes      []string
 }
 
 func GetAuthInfo() (*Auth, error) {
@@ -23,28 +23,28 @@ func GetAuthInfo() (*Auth, error) {
 		return nil, err
 	}
 	auth := &Auth{
-		ClientID: os.Getenv("CLIENT_ID"),
-		Secret: os.Getenv("SECRET"),
+		ClientID:    os.Getenv("CLIENT_ID"),
+		Secret:      os.Getenv("SECRET"),
 		RedirectURL: "urn:ietf:wg:oauth:2.0:oob",
-		Scopes: []string{"https://www.googleapis.com/auth/drive"},
+		Scopes:      []string{"https://www.googleapis.com/auth/drive"},
 	}
 	return auth, nil
 }
 
 func main() {
 	auth, err := GetAuthInfo()
-	if (err != nil) {
+	if err != nil {
 		return
 	}
 	fmt.Println("Start Execute API")
 
 	config := &oauth2.Config{
-		ClientID: auth.ClientID,
+		ClientID:     auth.ClientID,
 		ClientSecret: auth.Secret,
-		RedirectURL: auth.RedirectURL,
-		Scopes: auth.Scopes,
+		RedirectURL:  auth.RedirectURL,
+		Scopes:       auth.Scopes,
 		Endpoint: oauth2.Endpoint{
-			AuthURL: "https://accounts.google.com/o/oauth2/auth",
+			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
 			TokenURL: "https://accounts.google.com/o/oauth2/token",
 		},
 	}
