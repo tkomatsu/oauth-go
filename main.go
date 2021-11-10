@@ -17,14 +17,34 @@ import (
 	oauthapi "google.golang.org/api/oauth2/v2"
 )
 
+var (
+	confGoogle *oauth2.Config
+	confIntra  *oauth2.Config
+)
+
 func main() {
 	if err := godotenv.Load(fmt.Sprintf("./%s.env", os.Getenv("GO_ENV"))); err != nil {
 		return
 	}
-	confGoogle.ClientID = os.Getenv("GOOGLE_CLIENT_ID")
-	confGoogle.ClientSecret = os.Getenv("GOOGLE_SECRET")
-	confIntra.ClientID = os.Getenv("INTRA_CLIENT_ID")
-	confIntra.ClientSecret = os.Getenv("INTRA_SECRET")
+
+	confGoogle = &oauth2.Config{
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_SECRET"),
+		Scopes:       []string{oauthapi.UserinfoEmailScope},
+		Endpoint:     google.Endpoint,
+		RedirectURL:  "http://localhost:5001/login/google/redirect",
+	}
+
+	confIntra = &oauth2.Config{
+		ClientID:     os.Getenv("INTRA_CLIENT_ID"),
+		ClientSecret: os.Getenv("INTRA_SECRET"),
+		Scopes:       []string{"public", "projects", "profile", "elearning", "tig", "forum"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://api.intra.42.fr/oauth/authorize",
+			TokenURL: "https://api.intra.42.fr/oauth/token",
+		},
+		RedirectURL: "http://localhost:5001/login/intra/redirect",
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/login/google", GoogleLoginHandler)
@@ -63,14 +83,6 @@ func GoogleLoginRHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var confGoogle = &oauth2.Config{
-	ClientID:     "",
-	ClientSecret: "",
-	Scopes:       []string{oauthapi.UserinfoEmailScope},
-	Endpoint:     google.Endpoint,
-	RedirectURL:  "http://localhost:5001/login/google/redirect",
-}
-
 func IntraLoginHandler(w http.ResponseWriter, r *http.Request) {
 	var url = confIntra.AuthCodeURL("")
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
@@ -91,7 +103,7 @@ func IntraLoginRHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Token exchange success")
 	client := confIntra.Client(ctx, tok)
 	res, err := client.Get("https://api.intra.42.fr/v2/me/projects")
-	if err != nil {
+	if err != nil || res.StatusCode != http.StatusOK {
 		log.Println("/me/projects failed")
 		fmt.Fprintln(w, "Error: ", err)
 	} else {
@@ -100,13 +112,3 @@ func IntraLoginRHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var confIntra = &oauth2.Config{
-	ClientID:     "",
-	ClientSecret: "",
-	Scopes:       []string{"public", "projects", "profile", "elearning", "tig", "forum"},
-	Endpoint: oauth2.Endpoint{
-		AuthURL:  "https://api.intra.42.fr/oauth/authorize",
-		TokenURL: "https://api.intra.42.fr/oauth/token",
-	},
-	RedirectURL: "http://localhost:5001/login/intra/redirect",
-}
