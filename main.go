@@ -23,8 +23,25 @@ var (
 )
 
 func main() {
-	if err := godotenv.Load(fmt.Sprintf("./%s.env", os.Getenv("GO_ENV"))); err != nil {
+	if err := setConfig(); err != nil {
 		return
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/login/google", GoogleLoginHandler)
+	mux.HandleFunc("/login/google/redirect", GoogleLoginRHandler)
+	mux.HandleFunc("/login/intra", IntraLoginHandler)
+	mux.HandleFunc("/login/intra/redirect", IntraLoginRHandler)
+
+	log.Println("Server has started")
+	fmt.Println("Pleas access: http://localhost:5001/login/google")
+	fmt.Println("Pleas access: http://localhost:5001/login/intra")
+	http.ListenAndServe(":5001", mux)
+}
+
+func setConfig() error {
+	if err := godotenv.Load(fmt.Sprintf("./%s.env", os.Getenv("GO_ENV"))); err != nil {
+		return err
 	}
 
 	confGoogle = &oauth2.Config{
@@ -46,16 +63,7 @@ func main() {
 		RedirectURL: "http://localhost:5001/login/intra/redirect",
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/login/google", GoogleLoginHandler)
-	mux.HandleFunc("/login/google/redirect", GoogleLoginRHandler)
-	mux.HandleFunc("/login/intra", IntraLoginHandler)
-	mux.HandleFunc("/login/intra/redirect", IntraLoginRHandler)
-
-	log.Println("Server has started")
-	fmt.Println("Pleas access: http://localhost:5001/login/google")
-	fmt.Println("Pleas access: http://localhost:5001/login/intra")
-	http.ListenAndServe(":5001", mux)
+	return nil
 }
 
 func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
