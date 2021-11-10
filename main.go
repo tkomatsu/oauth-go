@@ -9,9 +9,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	oauthapi "google.golang.org/api/oauth2/v2"
@@ -40,21 +39,27 @@ func main() {
 }
 
 func setConfig() error {
-	if err := godotenv.Load(fmt.Sprintf("./%s.env", os.Getenv("GO_ENV"))); err != nil {
+	viper.AddConfigPath(".")
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Print("[ERROR] viper: ", err)
 		return err
 	}
 
+	key := viper.GetStringMapString("google")
 	confGoogle = &oauth2.Config{
-		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		ClientSecret: os.Getenv("GOOGLE_SECRET"),
+		ClientID:     key["client_id"],
+		ClientSecret: key["client_secret"],
 		Scopes:       []string{oauthapi.UserinfoEmailScope},
 		Endpoint:     google.Endpoint,
 		RedirectURL:  "http://localhost:5001/login/google/redirect",
 	}
 
+	key = viper.GetStringMapString("intra")
 	confIntra = &oauth2.Config{
-		ClientID:     os.Getenv("INTRA_CLIENT_ID"),
-		ClientSecret: os.Getenv("INTRA_SECRET"),
+		ClientID:     key["client_id"],
+		ClientSecret: key["client_secret"],
 		Scopes:       []string{"public", "projects", "profile", "elearning", "tig", "forum"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://api.intra.42.fr/oauth/authorize",
@@ -119,4 +124,3 @@ func IntraLoginRHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, res.Body)
 	}
 }
-
