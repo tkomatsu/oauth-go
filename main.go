@@ -1,9 +1,5 @@
 package main
 
-/*
- *https://utahta.hatenablog.com/blog/2016/08/16/Google_OAuth2_%E3%83%88%E3%83%BC%E3%82%AF%E3%83%B3%E3%82%92%E5%8F%96%E5%BE%97%E3%81%99%E3%82%8B_with_Go
- */
-
 import (
 	"context"
 	"fmt"
