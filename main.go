@@ -89,6 +89,10 @@ func GoogleLoginRHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "OAuth Error:%v", err)
 	} else {
 		fmt.Fprintf(w, "Your are logined as : %s", ui.Email)
+		confmap := viper.GetStringMapString("google")
+		confmap["access_token"] = tok.AccessToken
+		viper.Set("google", confmap)
+		viper.WriteConfig()
 	}
 }
 
@@ -118,5 +122,9 @@ func IntraLoginRHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Println("/me/projects SUCCEEDED!!!!!!!!")
 		fmt.Fprintln(w, res.Body)
+		confmap := viper.GetStringMapString("intra")
+		confmap["access_token"] = tok.AccessToken
+		viper.Set("intra", confmap)
+		viper.WriteConfig()
 	}
 }
