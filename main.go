@@ -27,10 +27,12 @@ func main() {
 	mux.HandleFunc("/login/google/redirect", GoogleLoginRHandler)
 	mux.HandleFunc("/login/intra", IntraLoginHandler)
 	mux.HandleFunc("/login/intra/redirect", IntraLoginRHandler)
+	mux.HandleFunc("/intra/test", AlreadyLoginHandler)
 
 	log.Println("Server has started")
 	fmt.Println("Pleas access: http://localhost:5001/login/google")
 	fmt.Println("Pleas access: http://localhost:5001/login/intra")
+	fmt.Println("Pleas access: http://localhost:5001/intra/test")
 	http.ListenAndServe(":5001", mux)
 }
 
@@ -126,5 +128,19 @@ func IntraLoginRHandler(w http.ResponseWriter, r *http.Request) {
 		confmap["access_token"] = tok.AccessToken
 		viper.Set("intra", confmap)
 		viper.WriteConfig()
+	}
+}
+
+func AlreadyLoginHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	confmap := viper.GetStringMapString("intra")
+	client := confIntra.Client(ctx, (&oauth2.Token{AccessToken: confmap["access_token"]}))
+	res, err := client.Get("https://api.intra.42.fr/v2/me/projects")
+	if err != nil || res.StatusCode != http.StatusOK {
+		log.Println("/me/projects failed")
+		fmt.Fprintln(w, "Error: ", err)
+	} else {
+		log.Println("/me/projects SUCCEEDED!!!!!!!!")
+		fmt.Fprintln(w, res.Body)
 	}
 }
