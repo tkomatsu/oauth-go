@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
@@ -17,23 +18,77 @@ var (
 	confIntra  *oauth2.Config
 )
 
+func startHttpServer(wg *sync.WaitGroup) *http.Server {
+	srv := &http.Server{Addr: ":5001"}
+	http.HandleFunc("/login/intra/redirect", IntraLoginRHandler)
+
+	go func() {
+		defer wg.Done()
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatalf("ListenAndServe(): %v", err)
+		}
+	}()
+
+	return srv
+}
+
 func main() {
 	if err := setConfig(); err != nil {
 		return
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/login/google", GoogleLoginHandler)
-	mux.HandleFunc("/login/google/redirect", GoogleLoginRHandler)
-	mux.HandleFunc("/login/intra", IntraLoginHandler)
-	mux.HandleFunc("/login/intra/redirect", IntraLoginRHandler)
-	mux.HandleFunc("/intra/test", AlreadyLoginHandler)
+	httpServerExitDone := &sync.WaitGroup{}
+	httpServerExitDone.Add(1)
+	srv := startHttpServer(httpServerExitDone)
 
-	log.Println("Server has started")
-	fmt.Println("Pleas access: http://localhost:5001/login/google")
-	fmt.Println("Pleas access: http://localhost:5001/login/intra")
-	fmt.Println("Pleas access: http://localhost:5001/intra/test")
-	http.ListenAndServe(":5001", mux)
+	url := confIntra.AuthCodeURL("")
+	// TODO: ログインURLをブラウザで自動で開きたい
+	/*
+		url = "https://www.google.com"
+		browser := "open"
+		args := []string{url}
+		browser, err := exec.LookPath(browser)
+		if err != nil {
+			cmd := exec.Command(browser, args...)
+			cmd.Stderr = os.Stderr
+			err = cmd.Start()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	*/
+	fmt.Println("Open this URL")
+	fmt.Println(url)
+
+	for {
+		confmap := viper.GetStringMapString("intra")
+		if confmap["access_token"] != "" {
+			// context.TODOでもいいかも
+			if err := srv.Shutdown(context.Background()); err != nil {
+				panic(err)
+			}
+			httpServerExitDone.Wait()
+			break
+		}
+	}
+
+	/*
+		mux := http.NewServeMux()
+		mux.HandleFunc("/login/google", GoogleLoginHandler)
+		mux.HandleFunc("/login/google/redirect", GoogleLoginRHandler)
+		mux.HandleFunc("/login/intra", IntraLoginHandler)
+		mux.HandleFunc("/login/intra/redirect", IntraLoginRHandler)
+		mux.HandleFunc("/intra/test", AlreadyLoginHandler)
+
+		log.Println("Server has started")
+		fmt.Println("Pleas access: http://localhost:5001/login/google")
+		fmt.Println("Pleas access: http://localhost:5001/login/intra")
+		fmt.Println("Pleas access: http://localhost:5001/intra/test")
+		http.ListenAndServe(":5001", mux)
+	*/
+
+	// After get token
+	fmt.Println("DONE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 }
 
 func setConfig() error {
